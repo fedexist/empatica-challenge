@@ -9,8 +9,8 @@
 
 ```shell
 # 1. Clone the repository and get in the repo folder
-git clone 
-cd
+git clone https://github.com/fedexist/unhealthy-wearables
+cd unhealthy-wearables
 
 
 # 2. Download raw_bucket.zip and unzip it
