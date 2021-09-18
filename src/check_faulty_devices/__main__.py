@@ -1,7 +1,7 @@
 import os
 from datetime import date, timedelta
 
-from check_faulty_devices.check_faulty_devices import process_day
+from check_faulty_devices.check_devices import process_day
 
 
 DATE = os.getenv('MONITORING_DATE')

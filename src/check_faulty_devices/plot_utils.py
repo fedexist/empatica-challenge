@@ -3,7 +3,7 @@ import pandas as pd
 from pandas.plotting._matplotlib.style import get_standard_colors
 
 
-def plot_multi(data: pd.DataFrame, cols=None, spacing=.1, **kwargs):
+def plot_device_data(data: pd.DataFrame, device_name, cols=None, spacing=.1, **kwargs):
     # Get default color style from pandas - can be changed to any other color list
     if cols is None:
         cols = data.columns
@@ -29,5 +29,6 @@ def plot_multi(data: pd.DataFrame, cols=None, spacing=.1, **kwargs):
         labels += label
 
     ax.legend(lines, labels, loc=0)
+    plt.title(device_name)
     plt.show()
     return ax
