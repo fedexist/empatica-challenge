@@ -89,6 +89,13 @@ for root, d, files in os.walk('raw_bucket'):
         plot_device_data(complete, device_name, figsize=(15, 10))
 ```
 
+Here are some of the devices:
+
+![device_002](images/device_002.png "device_002")
+![device_007](images/device_007.png "device_007")
+![device_012](images/device_012.png "device_012")
+![device_013](images/device_013.png "device_013")
+
 We can make some assumptions and set some expectations on how a correct functioning may be, 
 differentiating two different datasets:
 
