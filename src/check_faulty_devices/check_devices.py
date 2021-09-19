@@ -110,6 +110,7 @@ def is_device_faulty_wrist_off(df: pd.DataFrame, indices: Dict) -> Dict:
 
     for group, index in indices.items():
 
+        # Take in consideration only segments longer than 1 second
         if len(index) > 64:
             df_off_sequence = df.iloc[index]
             # Windows based on when the sensors are actually not worn
@@ -152,8 +153,7 @@ def send_alert(df: pd.DataFrame, device_name: str, explanation: Dict, with_plot=
     A proper alert would integrate with the monitoring tools used, instead of printing to stdout.
     Possibly to a message broker or a proper table used by dashboard tool.
     """
-    print(f"""
-Device {device_name} is malfunctioning!
+    print(f"""Device {device_name} is malfunctioning!
 Explanation:
 {json.dumps(explanation, indent=4)}
 -------------

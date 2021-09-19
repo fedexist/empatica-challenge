@@ -13,7 +13,7 @@ git clone https://github.com/fedexist/unhealthy-wearables
 cd unhealthy-wearables
 
 
-# 2. Download raw_bucket.zip and unzip it
+# 2. Download raw_bucket.zip inside the 'unhealthy-wearables' folder and unzip it
 unzip raw_bucket.zip
 
 # 3. Create a virtual environment and activate it
@@ -39,7 +39,6 @@ python -m check_faulty_devices
 # 6.c or run it on the day you want to specify (iso format)
 export MONITORING_DATE=2021-02-02
 python -m check_faulty_devices
-
 ```
 
 ## How does it all work?
@@ -49,7 +48,7 @@ The problem at hand is finding out which devices might be malfunctioning, given 
 * `on_wrist` data is always correct
 * `ppg` and `temperature` data may show malfunctionings
 
-After a bit of reasoning, taking a look at the data:
+After a bit of reasoning and taking a look at the data:
 
 ```shell
 jupyter-notebook exploration.ipynb
@@ -86,7 +85,8 @@ for root, d, files in os.walk('raw_bucket'):
         plot_device_data(complete, device_name, figsize=(15, 10))
 ```
 
-We can make some assumptions based on two different datasets:
+We can make some assumptions and set some expectations on how a correct functioning may be, 
+differentiating two different datasets:
 
 * When the device is worn (`on_wrist == 1`):
     * we expect temperature within a certain value range
@@ -115,10 +115,10 @@ N.B: we could have taken the directly opposite approach, resampling to 1 Hz or 4
 information, because we'd have to aggregate our data points. This loss of information could be acceptable though.
 
 
-### 2. Check our data between wrist on and wrist off
+### 2. Check our data for both cases (wrist on/off)
 
-For each continous segment of data, in both cases if the devices is worn or not. we check our conditions and see 
-if at least one of them applies:
+For each continuous segment of data, in both cases if the devices is worn or not, we check our conditions and see 
+if at least one of them is true:
 
 ```python
 def is_device_faulty(df: pd.DataFrame) -> Tuple[bool, Dict]:
@@ -138,11 +138,13 @@ def is_device_faulty(df: pd.DataFrame) -> Tuple[bool, Dict]:
 
 ### 3. Send alerts
 
-Based on the results of our checks, we send the alerts. (More on this, in the next paragraph)
+Based on the results of our checks, we send the alerts. 
+
+More on this, in the next paragraph
 
 ## Monitoring
 
-In this toy use case, the monitoring is simply based on the output on standard output:
+In this toy use case, the monitoring is simply based on the output on stdout:
 
 ```python
 def send_alert(df: pd.DataFrame, device_name: str, explanation: Dict, with_plot=False):
@@ -174,4 +176,4 @@ A production deployment in a cloud infrastructure could be designed in various w
 * a scheduled serverless function (Lambda, Google Cloud Function)
 
 this depends on the costs and on the infrastructure already available (e.g. it's unreasonable to create a Kubernetes cluster
-if no other )
+if no other use case needs one). Usually, a serverless solution is the most cost effective, even if it may lack in flexibility.
