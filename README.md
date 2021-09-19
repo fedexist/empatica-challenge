@@ -20,6 +20,10 @@ unzip raw_bucket.zip
 python3.9 -m venv venv
 source venv/bin/activate
 
+## 3.a [Optional] If you want to run the tests (make sure, you have py37, py38 and py39 installed)
+pip install -r requirements_dev.txt
+python -m tox
+
 # 4. Install the package
 pip install -e .
 

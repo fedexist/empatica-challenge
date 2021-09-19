@@ -1,6 +1,6 @@
 import json
-from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Dict, Tuple
+from concurrent.futures.process import ProcessPoolExecutor
+from typing import Dict, Tuple, Any, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -13,7 +13,6 @@ import re
 from check_faulty_devices.plot_utils import plot_device_data
 
 BASE_DIR = Path(os.getenv('BUCKET_PATH', 'raw_bucket'))
-WORKERS = os.getenv('WORKERS')
 
 # This standard deviation values should be appropriately set
 # by someone who knows their stuff
@@ -29,11 +28,20 @@ TEMPERATURE_WRIST_ON_VALUE_THRESHOLD = range(2700, 3700)
 TEMPERATURE_WRIST_OFF_LOWER_THRESHOLD = 2700
 
 
-def load_data(path: Path) -> pd.DataFrame():
+def load_data(path: Path) -> pd.DataFrame:
     """
     Load data from a path.
 
     We expect 3 csv datasets containing a time series each.
+    """
+    csvs = [file_path for file_path in path.iterdir() if str(file_path).endswith('csv')]
+    dfs = [pd.read_csv(file_path, header=None) for file_path in csvs]
+
+    return dfs[0], dfs[1], dfs[2]
+
+
+def merge_data(on_wrist_df: pd.DataFrame, temp_df: pd.DataFrame, ppg_df: pd.DataFrame) -> pd.DataFrame:
+    """
     Because of the difference in the sampling rate, we normalize the timeseries to 64 Hz, so that
     1 sample from on_wrist becomes 64 samples with the same value, and 1 sample from temperature
     becomes 16 samples with the same value.
@@ -41,12 +49,15 @@ def load_data(path: Path) -> pd.DataFrame():
     Then, we create a single dataset with the 3 time series and cut their length to the minimum length of the 3,
     so that our dataset has a unique size.
     """
-    csvs = [file_path for file_path in path.iterdir() if str(file_path).endswith('csv')]
-    dfs = [pd.read_csv(file_path, header=None) for file_path in csvs]
+    on_wrist = on_wrist_df.loc[
+        on_wrist_df.index.repeat(PPG_SAMPLING_RATE / ON_WRIST_SAMPLING_RATE)
+    ].reset_index(drop=True)
 
-    on_wrist = dfs[0].loc[dfs[0].index.repeat(PPG_SAMPLING_RATE / ON_WRIST_SAMPLING_RATE)].reset_index(drop=True)
-    temperature = dfs[1].loc[dfs[1].index.repeat(PPG_SAMPLING_RATE / TEMPERATURE_SAMPLING_RATE)].reset_index(drop=True)
-    ppg = dfs[2]
+    temperature = temp_df.loc[
+        temp_df.index.repeat(PPG_SAMPLING_RATE / TEMPERATURE_SAMPLING_RATE)
+    ].reset_index(drop=True)
+
+    ppg = ppg_df.copy()
 
     wrist_samples = len(on_wrist)
     temp_samples = len(temperature)
@@ -78,9 +89,7 @@ def is_device_faulty_wrist_on(df: pd.DataFrame, indices) -> Dict:
         temp_std: pd.DataFrame = windows.temperature.std()
         ppg_std = windows.ppg.std()
 
-        temp_outside_range = df_on_sequence[
-                                     ~df_on_sequence.temperature.isin(TEMPERATURE_WRIST_ON_VALUE_THRESHOLD)
-                                 ]
+        temp_outside_range = df_on_sequence[~df_on_sequence.temperature.isin(TEMPERATURE_WRIST_ON_VALUE_THRESHOLD)]
 
         temp_over_std_threshold = temp_std[temp_std > TEMPERATURE_STD_THRESHOLD]
         ppg_over_std_threshold = ppg_std[ppg_std > PPG_STD_WRIST_ON_THRESHOLD]
@@ -94,7 +103,7 @@ def is_device_faulty_wrist_on(df: pd.DataFrame, indices) -> Dict:
     return is_faulty
 
 
-def dict_contains_any_true(d: Dict) -> bool:
+def dict_contains_any_true(d: Dict[Any, Dict]) -> bool:
     for key, value in d.items():
         if any(value.values()):
             return True
@@ -159,12 +168,12 @@ Explanation:
 -------------
 """)
     if with_plot:
-        plot_device_data(df, figsize=(10, 5))
+        plot_device_data(df, device_name, figsize=(10, 5))
 
 
 def device_alert(device_path: Path):
     device_name = device_path.name
-    df = load_data(device_path)
+    df = merge_data(*load_data(device_path))
 
     faulty, explanation = is_device_faulty(df)
 
@@ -179,9 +188,11 @@ def process_day(day: date = date.today() - timedelta(days=1)):
         # Obviously, if using a bucket (gcs, s3 etc.), I'd use the proper call for directory listing
         devices = [device for device in today_dir.iterdir() if re.match(r'device_\d{3}', device.name)]
 
+        WORKERS: Optional[int] = int(os.getenv('WORKERS', len(devices)))
+
         if devices:
-            with ThreadPoolExecutor(max_workers=WORKERS or len(devices)) as executor:
-                results = executor.map(device_alert, devices)
+            with ProcessPoolExecutor(max_workers=WORKERS or len(devices)) as executor:
+                executor.map(device_alert, devices)
         else:
             print("No devices available!")
     else:
